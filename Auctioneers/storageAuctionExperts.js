@@ -7,6 +7,8 @@ const request = require('request');
 const cheerio = require('cheerio');
 const fs = require('fs');
 
+
+
 request('http://www.storageauctionexperts.com/month_sept.php', (error, response, html) => {
 
   if (!error && response.statusCode == 200) {
@@ -15,7 +17,7 @@ request('http://www.storageauctionexperts.com/month_sept.php', (error, response,
   const auctionsTableBody = auctionsTable.find('tbody');
   const auctionsTableRows = auctionsTableBody.find('tr');
 
-  // write to sql file
+  //write to sql file
   var writeToFile = function (_auction) {
     var content = fs.readFileSync('storageAuctionExperts-Auctions.sql');
     fs.writeFileSync('storageAuctionExperts-Auctions.sql', content +
@@ -23,21 +25,25 @@ request('http://www.storageauctionexperts.com/month_sept.php', (error, response,
   }
 
   // **** write with back-tics ****
-  var writeToFile = function (_auction) {
-    var content = fs.readFileSync('storageAuctionExperts-Auctions.sql');
-    fs.writeFileSync(`
-      'storageAuctionExperts-Auctions.sql', content
-      `);
-  }
+  // var writeToFile = function (_auction) {
+  //   var content = fs.readFileSync('storageAuctionExperts-Auctions.sql');
+  //   fs.writeFileSync('storageAuctionExperts-Auctions.sql',
+  //     `
+  //     ${content} INSERT INTO auctions (auction_id, date, storage_facility, address,
+  //       city, state, phone, units, auctioneer)
+  //       VALUES(null, '${_auction.day}', '${_auction.month}', '${_auction.year}',
+  //       '${_auction.day_of_week}', '${_auction.time}', '${_auction.storage_facility}',
+  //       '${_auction.address}', '${_auction.city}', '${_auction.state}', '${_auction.phone}',
+  //       null, 'Storage Auction Experts');
+  //     `);
+  // }
 
 
-
-
-  // get year
   // ***** FORMATTED DATE / TIME *****
-  // const yearTable = $('.month_header');
-  // var theYear = yearTable.find('h3').text().split(' ')[1];
-  // ***** FORMATTED DATE /TIME *****
+  //var _auction = new auction();
+  var _objectYear = {theYear: ''};
+  //var formattedDate = new Date(_objectYear.theYear + '-' + _auction.month + '-' + _auction.day + '-' + _auction.time);
+
 
   var auction = function () {
       return {
@@ -67,25 +73,25 @@ request('http://www.storageauctionexperts.com/month_sept.php', (error, response,
   }
 
   var doesRowHaveStorageFacility = (row) => {
-    var result =$(row).find('td:nth-child(4)');
+    var result = $(row).find('td:nth-child(4)');
     if (result.length === 0) return false;
     return result;
   }
 
   var doesRowHaveAddress = (row) => {
-    var result =$(row).find('td:nth-child(5)');
+    var result = $(row).find('td:nth-child(5)');
     if (result.length === 0) return false;
     return result;
   }
 
   var doesRowHaveCity = (row) => {
-    var result =$(row).find('td:nth-child(6)');
+    var result = $(row).find('td:nth-child(6)');
     if (result.length === 0) return false;
     return result;
   }
 
   var doesRowHavePhone = (row) => {
-    var result =$(row).find('td:nth-child(7)');
+    var result = $(row).find('td:nth-child(7)');
     if (result.length === 0) return false;
     return result;
   }
@@ -195,15 +201,16 @@ request('http://www.storageauctionexperts.com/month_sept.php', (error, response,
         _auction.phone = formatPhoneNumber(phoneUnformatted);
       }
 
-      // ***** FORMATTED DATE / TIME *****
-      // var formattedDate = new Date(theYear + '-' + _auction.month + '-' + _auction.day + '-' + _auction.time);
-      // console.log('-----------------');
-      // console.log(_auction.date);
-      // console.log(formattedDate);
-      // console.log('-----------------');
-      // ***** FORMATTED DATE / TIME *****
+
+      // get year
+      const yearTable = $('.month_header');
+      _objectYear.theYear = yearTable.find('h3').text().split(' ')[1];
+
+
 
       if (_auction.date && _auction.time && _auction.storageFacility && _auction.address && _auction.city && _auction.phone) {
+        //console.log(formattedDate + ' ' + _auction.storageFacility + ' ' + _auction.address + ' ' + _auction.city + ' '+ _auction.state + ' ' + _auction.phone);
+
         console.log(_auction.day + ' ' + _auction.month + ' ' + _auction.year + ' ' + _auction.dayOfWeek + ' ' +  _auction.time + ' ' + _auction.storageFacility + ' ' + _auction.address + ' ' + _auction.city + ' '+ _auction.state + ' ' + _auction.phone);
         writeToFile(_auction);
       }
