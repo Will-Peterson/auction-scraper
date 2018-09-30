@@ -7,8 +7,6 @@ const request = require('request');
 const cheerio = require('cheerio');
 const fs = require('fs');
 
-
-
 request('http://www.storageauctionexperts.com/month_sept.php', (error, response, html) => {
 
   if (!error && response.statusCode == 200) {
@@ -21,29 +19,8 @@ request('http://www.storageauctionexperts.com/month_sept.php', (error, response,
   var writeToFile = function (_auction) {
     var content = fs.readFileSync('storageAuctionExperts-Auctions.sql');
     fs.writeFileSync('storageAuctionExperts-Auctions.sql', content +
-    "\nINSERT INTO auctions (auction_id, day, month, year, day_of_week, time, storage_facility, address, city, state, phone, units, auctioneer)\nVALUES (null, '" + _auction.day + "', '" + _auction.month + "', '" + _auction.year + "', '" + _auction.dayOfWeek + "', '" + _auction.time + "', '" + _auction.storageFacility + "', '" + _auction.address + "', '" + _auction.city + "', '" + _auction.state + "', '" + _auction.phone + "', null, 'Storage Auction Experts');");
+    "\nINSERT INTO auctions (auction_id, date_time, storage_facility, address, city, state, phone, units, auctioneer, is_canceled)\nVALUES (null, '" + _auction.dateTime + "', '" + _auction.storageFacility + "', '" + _auction.address + "', '" + _auction.city + "', '" + _auction.state + "', '" + _auction.phone + "', 'Unknown', 'Storage Auction Experts', '" + _auction.isCanceled + "');");
   }
-
-  // **** write with back-tics ****
-  // var writeToFile = function (_auction) {
-  //   var content = fs.readFileSync('storageAuctionExperts-Auctions.sql');
-  //   fs.writeFileSync('storageAuctionExperts-Auctions.sql',
-  //     `
-  //     ${content} INSERT INTO auctions (auction_id, date, storage_facility, address,
-  //       city, state, phone, units, auctioneer)
-  //       VALUES(null, '${_auction.day}', '${_auction.month}', '${_auction.year}',
-  //       '${_auction.day_of_week}', '${_auction.time}', '${_auction.storage_facility}',
-  //       '${_auction.address}', '${_auction.city}', '${_auction.state}', '${_auction.phone}',
-  //       null, 'Storage Auction Experts');
-  //     `);
-  // }
-
-
-  // ***** FORMATTED DATE / TIME *****
-  //var _auction = new auction();
-  var _objectYear = {theYear: ''};
-  //var formattedDate = new Date(_objectYear.theYear + '-' + _auction.month + '-' + _auction.day + '-' + _auction.time);
-
 
   var auction = function () {
       return {
@@ -56,9 +33,18 @@ request('http://www.storageauctionexperts.com/month_sept.php', (error, response,
           city: '',
           state: '',
           phone: '',
-          units: ''
+          units: '',
+          dateTime: '',
+          isCanceled: ''
       }
   }
+
+  var doesRowHaveCancellation = (row) => {
+    var result = $(row).hasClass('red');
+    if (result == false) return false;
+    return result;
+  }
+
 
   var doesRowHaveDate = (row) => {
       var result = $(row).find('td.table_date');
@@ -102,33 +88,96 @@ request('http://www.storageauctionexperts.com/month_sept.php', (error, response,
     return (!match) ? null : "(" + match[1] + ") " + match[2] + "-" + match[3];
   }
 
+  function formatTime(timeString) {
+    var time = timeString;
+    var hours = Number(time.match(/^(\d+)/)[1]);
+    var minutes = Number(time.match(/:(\d+)/)[1]);
+    var AMPM = time.match(/\s(.*)$/)[1];
+    if (AMPM == 'PM' && hours < 12) hours = hours + 12;
+    if (AMPM == 'AM' && hours == 12) hours = hours - 12;
+    var sHours = hours.toString();
+    var sMinutes = minutes.toString();
+    if (hours < 10) sHours = '0' + sHours;
+    if (minutes < 10) sMinutes = '0' + sMinutes;
+    var intHours = parseInt(sHours);
+    var intMinutes = parseInt(sMinutes);
+    var time = intHours + ':' + intMinutes;
+    return time;
+  }
 
   var currentDate;
   var currentMonth;
   var currentYear;
   var currentWeekDay;
   var currentDay;
-
+  var currentDateTime;
 
   auctionsTableRows.each((index, row) => {
       var _auction = new auction();
 
+      // get cancellation
+      if (result = doesRowHaveCancellation(row)) {
+        _auction.isCanceled = '1';
+      }
 
       // get date
       if (result = doesRowHaveDate(row)) {
         _auction.date = $(result).text().split(' ');
 
-
         // get day
         _auction.day = _auction.date[1];
 
         // get month
-        switch (_auction.date[0]) {  // july is normal
-          case 'AUG': _auction.month = 'August';
+        switch (_auction.date[0].toLowerCase()) {
+          case 'jan':
+          case 'january':
+            _auction.month = '1';
             break;
-          case 'SEPT': _auction.month = 'September';
+          case 'feb':
+          case 'february':
+            _auction.month = '2';
             break;
-          default: _auction.month = 'I don\'t know the month';
+          case 'mar':
+          case 'march':
+            _auction.month = '3';
+            break;
+          case 'apr':
+          case 'april':
+            _auction.month = '4';
+            break;
+          case 'may':
+            _auction.month = '5';
+            break;
+          case 'jun':
+          case 'june':
+            _auction.month = '6';
+            break;
+          case 'jul':
+          case 'july':
+            _auction.month = '7';
+            break;
+          case 'aug':
+          case 'august':
+            _auction.month = '8';
+            break;
+          case 'sep':
+          case 'sept':
+          case 'september':
+            _auction.month = '9';
+            break;
+          case 'oct':
+          case 'october':
+            _auction.month = '10';
+            break;
+          case 'nov':
+          case 'november':
+            _auction.month = '11';
+            break;
+          case 'dec':
+          case 'december':
+            _auction.month = '12';
+            break;
+          default: _auction.month = 'Month is not listed!!';
         }
 
         // get day of week
@@ -150,27 +199,25 @@ request('http://www.storageauctionexperts.com/month_sept.php', (error, response,
           default: _auction.dayOfWeek = 'I don\'t know the day of the week';
         }
 
-        // get year
-        _auction.year = '2018';
-
-        currentYear = _auction.year;
         currentWeekDay = _auction.dayOfWeek;
         currentMonth = _auction.month;
-        currentDate = _auction.date;
         currentDay = _auction.day;
+        currentDateTime = _auction.dateTime;
       }
 
-      _auction.date = currentDate;
       _auction.year = currentYear;
       _auction.dayOfWeek = currentWeekDay;
       _auction.month = currentMonth;
       _auction.day = currentDay;
+      _auction.dateTime = currentDateTime;
 
-      // get time
       if (result = doesRowHaveTime(row)) {
-          _auction.time = $(result).text();
-          var theTime = $(result).text().split(' ')[0];
+          var timeUnformatted = $(result).text();
+          _auction.time = formatTime(timeUnformatted);
+          // var theTime = $(result).text().split(' ')[0];
       }
+
+
 
       // get storage facility
       if (result = doesRowHaveStorageFacility(row)) {
@@ -201,17 +248,22 @@ request('http://www.storageauctionexperts.com/month_sept.php', (error, response,
         _auction.phone = formatPhoneNumber(phoneUnformatted);
       }
 
-
       // get year
       const yearTable = $('.month_header');
-      _objectYear.theYear = yearTable.find('h3').text().split(' ')[1];
+      _auction.year = yearTable.find('h3').text().split(' ')[1];
 
 
+      // time stamp (epoch number)
+      var dateString = _auction.day + '-' + _auction.month+'-'+_auction.year+' '+_auction.time;
+      dateTimeParts = dateString.split(' '),
+      timeParts = dateTimeParts[1].split(':'),
+      dateParts = dateTimeParts[0].split('-'),
+      date = new Date(dateParts[2], parseInt(dateParts[1], 10) - 1, dateParts[0], timeParts[0] - 7, timeParts[1]);
+      _auction.dateTime = date.getTime();
 
-      if (_auction.date && _auction.time && _auction.storageFacility && _auction.address && _auction.city && _auction.phone) {
-        //console.log(formattedDate + ' ' + _auction.storageFacility + ' ' + _auction.address + ' ' + _auction.city + ' '+ _auction.state + ' ' + _auction.phone);
-
-        console.log(_auction.day + ' ' + _auction.month + ' ' + _auction.year + ' ' + _auction.dayOfWeek + ' ' +  _auction.time + ' ' + _auction.storageFacility + ' ' + _auction.address + ' ' + _auction.city + ' '+ _auction.state + ' ' + _auction.phone);
+      if (_auction.dateTime) {
+        //console.log(dateString, _auction.isCanceled);
+        //console.log(_auction.dateTime + ' ' + _auction.storageFacility + ' ' + _auction.address + ' ' + _auction.city + ' '+ _auction.state + ' ' + _auction.phone);
         writeToFile(_auction);
       }
 
